@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ChevronLeft, Plus, Folder, Share2, Bot, Star, BrainCog, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -15,39 +15,139 @@ import { LibrarySquare } from "lucide-react"
 import { ChatInterface } from "@/components/chat-interface"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 
-type Item = {
-  id: number
-  name: string
-  type: "folder" | "ai"
-  systemPrompt?: string
-  model?: "claude-3-5-haiku-20241022" | "claude-3-5-sonnet-20241022"
-}
+type DBItem = {
+  id: number;
+  name: string;
+  type: "folder" | "ai";
+  system_prompt?: string;
+  model?: string;
+  folder_id?: number | null;
+  created_at: Date;
+};
 
 export default function LLMActions() {
-  const [items, setItems] = useState<Item[]>([
-    { id: 1, name: "Folder1", type: "folder" },
-    { id: 2, name: "Folder2", type: "folder" },
-    {
-      id: 3,
-      name: "My Assistant",
-      type: "ai",
-      systemPrompt: "You are a helpful AI assistant.",
-      model: "claude-3-5-sonnet-20241022"
-    },
-  ])
-
+  const queryClient = useQueryClient()
   const [newFolderName, setNewFolderName] = useState("")
   const [newAIName, setNewAIName] = useState("")
   const [newAIPrompt, setNewAIPrompt] = useState("")
   const [newAIModel, setNewAIModel] = useState<string>("")
   const [isNewFolderOpen, setIsNewFolderOpen] = useState(false)
   const [isNewAIOpen, setIsNewAIOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null)
-  const [editingItem, setEditingItem] = useState<Item | null>(null)
+  const [selectedItem, setSelectedItem] = useState<DBItem | null>(null)
+  const [editingItem, setEditingItem] = useState<DBItem | null>(null)
   const [editedPrompt, setEditedPrompt] = useState("")
   const [editedModel, setEditedModel] = useState<string>("")
 
+  // Query for fetching items
+  const { data: itemsList = [], isLoading } = useQuery({
+    queryKey: ['items'],
+    queryFn: async () => {
+      const response = await fetch('/api/items')
+      const data = await response.json()
+      return [
+        ...data.folders.map((f: any) => ({ ...f, type: 'folder' as const })),
+        ...data.agents.map((a: any) => ({
+          ...a,
+          type: 'ai' as const,
+          system_prompt: a.system_prompt,
+        })),
+      ]
+    },
+  })
+
+  // Mutation for creating folder
+  const createFolderMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const response = await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'folder', name }),
+      })
+      if (!response.ok) throw new Error('Failed to create folder')
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] })
+      setNewFolderName("")
+      setIsNewFolderOpen(false)
+      toast({
+        title: "Success",
+        description: "Folder created successfully",
+      })
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create folder",
+        variant: "destructive",
+      })
+    },
+  })
+
+  // Mutation for creating AI agent
+  const createAIMutation = useMutation({
+    mutationFn: async (data: { name: string; systemPrompt: string; model: string }) => {
+      const response = await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'ai', ...data }),
+      })
+      if (!response.ok) throw new Error('Failed to create AI agent')
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] })
+      setNewAIName("")
+      setNewAIPrompt("")
+      setNewAIModel("")
+      setIsNewAIOpen(false)
+      toast({
+        title: "Success",
+        description: "AI agent created successfully",
+      })
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create AI agent",
+        variant: "destructive",
+      })
+    },
+  })
+
+  // Mutation for updating AI agent
+  const updateAIMutation = useMutation({
+    mutationFn: async (data: { id: number; systemPrompt: string; model: string }) => {
+      const response = await fetch('/api/items', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) throw new Error('Failed to update AI agent')
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] })
+      setEditingItem(null)
+      setEditedPrompt("")
+      setEditedModel("")
+      toast({
+        title: "Success",
+        description: "AI agent updated successfully",
+      })
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update AI agent",
+        variant: "destructive",
+      })
+    },
+  })
+
+  // Update handlers to use mutations
   const handleCreateFolder = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newFolderName.trim()) {
@@ -58,19 +158,7 @@ export default function LLMActions() {
       })
       return
     }
-
-    const newFolder = {
-      id: items.length + 1,
-      name: newFolderName,
-      type: "folder" as const,
-    }
-    setItems([...items, newFolder])
-    setNewFolderName("")
-    setIsNewFolderOpen(false)
-    toast({
-      title: "Success",
-      description: "Folder created successfully",
-    })
+    createFolderMutation.mutate(newFolderName)
   }
 
   const handleCreateAI = (e: React.FormEvent) => {
@@ -83,28 +171,16 @@ export default function LLMActions() {
       })
       return
     }
-
-    const newAI = {
-      id: items.length + 1,
+    createAIMutation.mutate({
       name: newAIName,
-      type: "ai" as const,
       systemPrompt: newAIPrompt,
-      model: newAIModel as Item['model'],
-    }
-    setItems([...items, newAI])
-    setNewAIName("")
-    setNewAIPrompt("")
-    setNewAIModel("")
-    setIsNewAIOpen(false)
-    toast({
-      title: "Success",
-      description: "AI agent created successfully",
+      model: newAIModel,
     })
   }
 
   const handleEditAI = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!editedPrompt.trim()) {
+    if (!editedPrompt.trim() || !editingItem) {
       toast({
         title: "Error",
         description: "Please enter a system prompt",
@@ -112,18 +188,10 @@ export default function LLMActions() {
       })
       return
     }
-
-    setItems(items.map(item =>
-      item.id === editingItem?.id
-        ? { ...item, systemPrompt: editedPrompt, model: editedModel as Item['model'] }
-        : item
-    ))
-    setEditingItem(null)
-    setEditedPrompt("")
-    setEditedModel("")
-    toast({
-      title: "Success",
-      description: "AI agent updated successfully",
+    updateAIMutation.mutate({
+      id: editingItem.id,
+      systemPrompt: editedPrompt,
+      model: editedModel,
     })
   }
 
@@ -141,12 +209,17 @@ export default function LLMActions() {
           </Button>
         </div>
         <ChatInterface
-          systemPrompt={selectedItem.systemPrompt || ""}
+          systemPrompt={selectedItem.system_prompt || ""}
           agentName={selectedItem.name}
           model={selectedItem.model || "claude-3-5-sonnet-20241022"}
         />
       </div>
     )
+  }
+
+  // Add loading states to UI
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>
   }
 
   return (
@@ -283,7 +356,7 @@ export default function LLMActions() {
 
       {/* Grid */}
       <div className="grid grid-cols-2 gap-3 p-3">
-        {items.map((item) => (
+        {itemsList.map((item) => (
           <Card
             key={item.id}
             className="flex flex-col items-center justify-center aspect-square hover:bg-accent cursor-pointer transition-colors p-3 relative"
@@ -301,7 +374,7 @@ export default function LLMActions() {
                   onClick={(e) => {
                     e.stopPropagation()
                     setEditingItem(item)
-                    setEditedPrompt(item.systemPrompt || "")
+                    setEditedPrompt(item.system_prompt || "")
                     setEditedModel(item.model || "claude-3-5-sonnet-20241022")
                   }}
                 >
@@ -313,7 +386,7 @@ export default function LLMActions() {
             {item.type === "ai" && (
               <>
                 <span className="text-xs text-muted-foreground mt-1 text-center line-clamp-2">
-                  {item.systemPrompt}
+                  {item.system_prompt}
                 </span>
                 <span className="text-xs text-muted-foreground mt-1">
                   {item.model?.includes("haiku") ? "Haiku" : "Sonnet"}
