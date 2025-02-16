@@ -16,12 +16,11 @@ interface FolderViewProps {
     agents: DBItem[]
     onBack: () => void
     onSelectAgent: (agent: DBItem) => void
-    onEditAgent: (agent: DBItem) => void
     onNewAI: () => void
     onUpdateFolder: (id: number, name: string) => void
 }
 
-export function FolderView({ folder, agents, onBack, onSelectAgent, onEditAgent, onNewAI, onUpdateFolder }: FolderViewProps) {
+export function FolderView({ folder, agents, onBack, onSelectAgent, onNewAI, onUpdateFolder }: FolderViewProps) {
     const [isEditingFolder, setIsEditingFolder] = useState(false)
     const [editedFolderName, setEditedFolderName] = useState(folder.name)
 
@@ -104,21 +103,10 @@ export function FolderView({ folder, agents, onBack, onSelectAgent, onEditAgent,
                 {agents.map((agent) => (
                     <Card
                         key={agent.id}
-                        className="flex flex-col items-center justify-center aspect-square hover:bg-accent cursor-pointer transition-colors p-3 relative"
+                        className="flex flex-col items-center justify-center aspect-square hover:bg-accent cursor-pointer transition-colors p-3"
                         onClick={() => onSelectAgent(agent)}
                     >
                         <Bot className="h-8 w-8 mb-2 text-muted-foreground" />
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="absolute top-2 right-2"
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                onEditAgent(agent)
-                            }}
-                        >
-                            <Pencil className="h-4 w-4" />
-                        </Button>
                         <span className="text-sm text-center font-medium">{agent.name}</span>
                         <span className="text-xs text-muted-foreground mt-1">
                             {agent.model?.includes("haiku") ? "Haiku" : "Sonnet"}

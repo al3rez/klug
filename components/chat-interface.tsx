@@ -5,8 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Send } from "lucide-react"
+import { Send, Pencil } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type Message = {
     role: "user" | "assistant"
@@ -17,12 +21,30 @@ type ChatInterfaceProps = {
     systemPrompt: string
     agentName: string
     model: string
+    onEdit: (systemPrompt: string, model: string) => void
 }
 
-export function ChatInterface({ systemPrompt, agentName, model }: ChatInterfaceProps) {
+export function ChatInterface({ systemPrompt, agentName, model, onEdit }: ChatInterfaceProps) {
     const [messages, setMessages] = useState<Message[]>([])
     const [input, setInput] = useState("")
     const [isLoading, setIsLoading] = useState(false)
+    const [isEditing, setIsEditing] = useState(false)
+    const [editedPrompt, setEditedPrompt] = useState(systemPrompt)
+    const [editedModel, setEditedModel] = useState(model)
+
+    const handleEdit = (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!editedPrompt.trim()) {
+            toast({
+                title: "Error",
+                description: "Please enter a system prompt",
+                variant: "destructive",
+            })
+            return
+        }
+        onEdit(editedPrompt, editedModel)
+        setIsEditing(false)
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -67,9 +89,60 @@ export function ChatInterface({ systemPrompt, agentName, model }: ChatInterfaceP
     return (
         <div className="flex flex-col h-[calc(100dvh-64px)]">
             <div className="p-4 border-b">
-                <h2 className="text-lg font-semibold">{agentName}</h2>
+                <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-lg font-semibold">{agentName}</h2>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                            setEditedPrompt(systemPrompt)
+                            setEditedModel(model)
+                            setIsEditing(true)
+                        }}
+                    >
+                        <Pencil className="h-4 w-4" />
+                    </Button>
+                </div>
                 <p className="text-sm text-muted-foreground">{systemPrompt}</p>
             </div>
+
+            <Dialog open={isEditing} onOpenChange={setIsEditing}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Edit AI Agent</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleEdit} className="space-y-4 mt-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="model">Model</Label>
+                            <Select
+                                value={editedModel}
+                                onValueChange={setEditedModel}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select model" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</SelectItem>
+                                    <SelectItem value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="editSystemPrompt">System Prompt</Label>
+                            <Textarea
+                                id="editSystemPrompt"
+                                placeholder="Enter system prompt"
+                                value={editedPrompt}
+                                onChange={(e) => setEditedPrompt(e.target.value)}
+                                className="min-h-[100px]"
+                            />
+                        </div>
+                        <Button type="submit" className="w-full">
+                            Update AI Agent
+                        </Button>
+                    </form>
+                </DialogContent>
+            </Dialog>
 
             <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4">

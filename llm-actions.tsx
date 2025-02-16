@@ -288,6 +288,13 @@ export default function LLMActions() {
           systemPrompt={selectedItem.system_prompt || ""}
           agentName={selectedItem.name}
           model={selectedItem.model || "claude-3-5-sonnet-20241022"}
+          onEdit={(systemPrompt, model) => {
+            updateAIMutation.mutate({
+              id: selectedItem.id,
+              systemPrompt,
+              model,
+            })
+          }}
         />
       </div>
     )
@@ -497,15 +504,17 @@ export default function LLMActions() {
                         {...provided.dragHandleProps}
                         className="flex flex-col items-center justify-center aspect-square hover:bg-accent cursor-move transition-colors p-3 relative"
                         onClick={(e) => {
-                          e.stopPropagation()
-                          setSelectedItem(item)
+                          if (!(e.target as HTMLElement).closest('button')) {
+                            e.stopPropagation()
+                            setSelectedItem(item)
+                          }
                         }}
                       >
                         <Bot className="h-8 w-8 mb-2 text-muted-foreground" />
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="absolute top-2 right-2"
+                          className="absolute top-2 right-2 z-10 hover:bg-background/80"
                           onClick={(e) => {
                             e.stopPropagation()
                             setEditingItem(item)
