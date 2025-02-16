@@ -4,9 +4,8 @@ import { Providers } from "./providers"
 import { ThemeProvider } from "@/components/theme-provider"
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+  title: 'Klug - Manage your LLM agents in one place.',
+  description: 'Manage your LLM agents in one place.',
 }
 
 export default function RootLayout({
