@@ -2,4 +2,4 @@
 
 Manage your LLM agents in one place.
 
-![Demo Video](public/demo.mp4)
+![Demo Video](public/demo.gif)
